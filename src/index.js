@@ -460,6 +460,11 @@ class Offline {
       // Adds a route for each http endpoint
       ((fun.events && fun.events.length) || this.serverlessLog('(none)')) &&
       fun.events.forEach(event => {
+        if (event.schedule) {
+          const handler = this._createHandler(fun, funOptions);
+          handler();
+          return;
+        }
         if (event.websocket) {
           websocketFuns[event.websocket.route] = {
             fun,
