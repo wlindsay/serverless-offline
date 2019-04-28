@@ -438,6 +438,7 @@ class Offline {
     }
 
     const websocketFuns = {};
+    const snsFuns = {};
     Object.keys(this.service.functions).forEach(key => {
       const fun = this.service.getFunction(key);
       const funName = key;
@@ -467,6 +468,13 @@ class Offline {
         }
         if (event.websocket) {
           websocketFuns[event.websocket.route] = {
+            fun,
+            funOptions
+          };
+          return;
+        }
+        if (event.sns) {
+          snsFuns[event.sns] = {
             fun,
             funOptions
           };
@@ -1204,6 +1212,7 @@ class Offline {
       });
     });
     this._setupWebscoket(websocketFuns);
+    this._setupSns(snsFuns);
   }
 
   _setupEnvironment(fun) {
@@ -1255,6 +1264,52 @@ class Offline {
         routeKey: key
       }
     }, {});
+  }
+
+  _getTopicFun(snsFuns, topicArn) {
+    let f = snsFuns[topicArn];
+    if (f) {
+      return f;
+    }
+
+    const topicParts = topicArn.split(':');
+    const topic = topicParts[topicParts.length - 1];
+    return snsFuns[topic];
+  }
+
+  _setupSns(snsFuns) {
+    this.server.route({
+      method: 'POST',
+      path: '/snsServer',
+      handler: (request, reply) => {
+        const response = reply.response().hold();
+        const {
+          Message,
+          TopicArn
+        } = request.payload;
+        const topic = this._getTopicFun(snsFuns, TopicArn);
+
+        if (!topic) {
+          return response.send({
+            statusCode: 404,
+            source: `SNS Topic ${TopicArn} not found`
+          });
+        }
+
+        const handler = this._createHandler(topic.fun, topic.funOptions);
+        handler({
+          Records: [{
+            Sns: {
+              Message
+            }
+          }]
+        });
+        return response.send({
+          statusCode: 200,
+          source: 'Message sent.'
+        });
+      }
+    });
   }
 
   _setupWebscoket(websocketFuns) {
