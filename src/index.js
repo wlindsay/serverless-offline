@@ -1341,7 +1341,7 @@ class Offline {
         const {
           ctx
         } = req.websocket();
-        this._handleWebsocketRequest(websocketFuns, ctx.connectionId, req.payload.action, req.payload.data);
+        this._handleWebsocketRequest(websocketFuns, ctx.connectionId, req.payload.action, req.payload);
       }
     });
   }
